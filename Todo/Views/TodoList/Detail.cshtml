@@ -1,6 +1,7 @@
 ﻿@using Todo.Controllers
 @using Todo.Data.Entities
 @using Todo.Services
+@using Todo.Models.TodoItems
 @model Todo.Models.TodoLists.TodoListDetailViewmodel
 
 @{
@@ -15,8 +16,24 @@
             <input type="checkbox" id="hidedonecheckbox" />Hide completed
         </label>
     </div>
+    <div class="checkbox">
+        @if (Model.SortByRankNotImportance)
+        {
+            <label>
+                <input type="checkbox" id="sortbyrank" checked />
+                Sort by rank
+            </label>
+        }
+        else {
+            <label>
+                <input type="checkbox" id="sortbyrank" />
+                Sort by rank
+            </label>
+        }
+    </div>
 
     <ul class="list-group">
+        @Html.HiddenFor(m => m.SortByRankNotImportance)
 
         <li class="list-group-item">
             <a asp-action="Create" asp-controller="TodoItem" asp-route-todoListId="@Model.TodoListId">
@@ -24,7 +41,19 @@
             </a>
         </li>
 
-        @foreach (var item in Model.Items.OrderBy(m => m.Importance))
+        @{
+            IOrderedEnumerable<TodoItemSummaryViewmodel> orderedList;
+            if (Model.SortByRankNotImportance)
+            {
+                orderedList = Model.Items.OrderBy(m => m.Rank);
+            }
+            else
+            {
+                orderedList = Model.Items.OrderBy(m => m.Importance);
+            }
+        }
+
+        @foreach (var item in orderedList)
         {
             string contextualClass;
             switch (item.Importance)
@@ -44,10 +73,10 @@
             {
                 rowName = "isdone";
             }
-        
+
 
             <li class="list-group-item @contextualClass" name=@rowName>
-                
+
                 <div class="row">
                     <div class="col-md-8">
                         <a asp-action="Edit" asp-controller="TodoItem" asp-route-todoItemId="@item.TodoItemId">
@@ -67,7 +96,7 @@
                         <small>
                             @item.ResponsibleParty.UserName
 
-                            <img src="https://www.gravatar.com/avatar/@Gravatar.GetHash(item.ResponsibleParty.Email)?s=30"/>
+                            <img src="https://www.gravatar.com/avatar/@Gravatar.GetHash(item.ResponsibleParty.Email)?s=30" />
 
                         </small>
                     </div>
@@ -79,14 +108,26 @@
 </div>
 
 <script>
-    const checkbox = document.getElementById('hidedonecheckbox')
+    const hideDoneCheckbox = document.getElementById('hidedonecheckbox')
+    const sortByRankCheckbox = document.getElementById('sortbyrank')
     const collection = document.getElementsByName("isdone")
 
-    checkbox.addEventListener('change', (event) => {
+    hideDoneCheckbox.addEventListener('change', (event) => {
         const checked = event.target.checked
         const setTo = checked ? "none" : "block";
         for (let i = 0; i < collection.length; i++) {
             collection[i].style.display = setTo;
         }
     })
+
+    sortByRankCheckbox.addEventListener('change', (event) => {
+        const rankChecked = event.target.checked
+        var  url = "Detail?todoListid=@Model.TodoListId&sortByRank="+rankChecked
+        loadUrl(url)
+    })
+
+    function loadUrl(newLocation) {
+        window.location = newLocation;
+        return false;
+    }
 </script>

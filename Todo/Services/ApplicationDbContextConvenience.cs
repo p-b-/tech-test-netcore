@@ -1,5 +1,7 @@
-﻿using System.Linq;
+﻿using System.Collections.Generic;
+using System.Linq;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Todo.Data;
 using Todo.Data.Entities;
 
@@ -7,11 +9,19 @@ namespace Todo.Services
 {
     public static class ApplicationDbContextConvenience
     {
-        public static IQueryable<TodoList> RelevantTodoLists(this ApplicationDbContext dbContext, string userId)
+        public static List<TodoList> RelevantTodoLists(this ApplicationDbContext dbContext, string userId)
         {
-            return dbContext.TodoLists.Include(tl => tl.Owner)
+            var ownedLists = dbContext.TodoLists.Include(tl => tl.Owner)
                 .Include(tl => tl.Items)
                 .Where(tl => tl.Owner.Id == userId);
+            var otherLists = dbContext.TodoLists.Include(tl => tl.Owner)
+                .Include(tl => tl.Items)
+                .Where(tl => tl.Items.Any(td => td.ResponsiblePartyId == userId));
+
+            // Cannot perform a union operation on IQueryable<> that contain joins to other tables. Cannot remove the .include(tl => tl.Items) 
+            //  and perform the union, because the .Where brings the join in.
+            // Converting to lists and performing the union works correctly.
+            return ownedLists.ToList().Union(otherLists.ToList()).ToList();
         }
 
         public static TodoList SingleTodoList(this ApplicationDbContext dbContext, int todoListId)

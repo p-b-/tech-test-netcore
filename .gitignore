@@ -390,3 +390,5 @@ launchSettings.json
 local.parameters.json
 
 todo.db
+todo.db-shm
+todo.db-wal

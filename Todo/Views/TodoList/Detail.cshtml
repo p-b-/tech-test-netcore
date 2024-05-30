@@ -1,6 +1,7 @@
 ﻿@using Todo.Controllers
 @using Todo.Data.Entities
 @using Todo.Services
+@using Todo.Models.TodoItems
 @model Todo.Models.TodoLists.TodoListDetailViewmodel
 
 @{
@@ -10,20 +11,30 @@
 <h2>@ViewData["Title"]</h2>
 
 <div class="col-md-6">
-    <div class="checkbox">
-        <label>
-            <input type="checkbox" id="hidedonecheckbox" />Hide completed
-        </label>
+    <div class="form-group">
+
+        <div class="checkbox">
+            <label>
+                <input type="checkbox" id="hideDoneCheckbox" />Hide completed
+            </label>
+        </div>
+        <a id="sortByImportance">
+            <strong>Sort by importance</strong>
+        </a>
+        <br/>
+        <a id="sortByRank">
+            <strong>Sort by rank</strong>
+        </a>
+
     </div>
-
     <ul class="list-group">
-
         <li class="list-group-item">
             <a asp-action="Create" asp-controller="TodoItem" asp-route-todoListId="@Model.TodoListId">
                 <strong>Add New Item</strong>
             </a>
         </li>
 
+        @* If changing the sorting, update the javascript in the <script> block to represent what the default sort is on page load *@
         @foreach (var item in Model.Items.OrderBy(m => m.Importance))
         {
             string contextualClass;
@@ -44,10 +55,10 @@
             {
                 rowName = "isdone";
             }
-        
 
-            <li class="list-group-item @contextualClass" name=@rowName>
-                
+            @* data-importance and data-rank are used to store item properties for sorting *@
+            <li class="list-group-item @contextualClass" name=@rowName data-importance="@item.Importance" data-rank="@item.Rank">
+
                 <div class="row">
                     <div class="col-md-8">
                         <a asp-action="Edit" asp-controller="TodoItem" asp-route-todoItemId="@item.TodoItemId">
@@ -67,7 +78,7 @@
                         <small>
                             @item.ResponsibleParty.UserName
 
-                            <img src="https://www.gravatar.com/avatar/@Gravatar.GetHash(item.ResponsibleParty.Email)?s=30"/>
+                            <img src="https://www.gravatar.com/avatar/@Gravatar.GetHash(item.ResponsibleParty.Email)?s=30" />
 
                         </small>
                     </div>
@@ -79,14 +90,110 @@
 </div>
 
 <script>
-    const checkbox = document.getElementById('hidedonecheckbox')
+    const hideDoneCheckbox = document.getElementById("hideDoneCheckbox")
+    const sortByRank = document.getElementById("sortByRank")
+    const sortByImportance = document.getElementById("sortByImportance")
+
+    // Initial sort on page load is importance/ascending
+    var sortedBy = "importance"
+    var sortAscending = true;
+
     const collection = document.getElementsByName("isdone")
 
-    checkbox.addEventListener('change', (event) => {
+    hideDoneCheckbox.addEventListener('change', (event) => {
         const checked = event.target.checked
         const setTo = checked ? "none" : "block";
         for (let i = 0; i < collection.length; i++) {
             collection[i].style.display = setTo;
         }
     })
+
+    sortByRank.addEventListener('click', (event) => {
+        if (sortedBy == "rank") {
+            sortAscending = !sortAscending;
+        }
+        else {
+            sortedBy = "rank"
+            sortAscending = true;
+        }
+        sortItems(sortAscending, sortByRankComparitor)
+    })
+
+    sortByImportance.addEventListener('click', (event) => {
+        if (sortedBy == "importance") {
+            sortAscending = !sortAscending;
+        }
+        else {
+            sortedBy = "importance"
+            sortAscending = true;
+        }
+        sortItems(sortAscending, sortByImportanceComparitor)
+    })
+
+    function sortItems(ascending, comparitor)  {
+        var ul = $(".list-group:first");
+        var arr = $.makeArray(ul.children("li"));
+
+        arr.sort(comparitor);
+        if (!ascending) {
+            arr.reverse();
+        }
+
+        ul.empty();
+
+        $.each(arr, function () {
+            ul.append(this);
+        });
+    }
+
+    function sortByRankComparitor(elementA, elementB) {
+        var rankAStr = elementA.getAttribute("data-rank");
+        var rankBStr = elementB.getAttribute("data-rank");
+        if (rankBStr == null) {
+            // B is the 'add new item' at the top of the list, it should come before A
+            return 1; 
+        }
+        else if (rankAStr == null) {
+            // A is the 'add new item' at the top of the list, it should come before B
+            return -1;
+        }
+        var rankA = +rankAStr;
+        var rankB = +rankBStr;
+
+        if (rankA < rankB) return -1; // A comes before B
+        if (rankA > rankB) return 1; // B comes before A
+
+        return 0;
+    }
+
+    function sortByImportanceComparitor(elementA, elementB) {
+        var importanceStringA = elementA.getAttribute("data-importance");
+        var importanceStringB = elementB.getAttribute("data-importance");
+        if (importanceStringB == null) {
+            // B is the 'add new item' at the top of the list, it should come before A
+            return 1;
+        }
+        else if (importanceStringA == null) {
+            // A is the 'add new item' at the top of the list, it should come before B
+            return -1;
+        }
+
+        var importanceA = importanceToInteger(importanceStringA);
+        var importanceB = importanceToInteger(importanceStringB);
+
+        if (importanceA < importanceB) return -1;  // A comes before B
+        if (importanceA > importanceB) return 1; //  B comes before A
+
+        return 0;
+    }
+
+    function importanceToInteger(importanceStr) {
+        switch (importanceStr) {
+            case "High": return 1;
+            case "Medium": return 2;
+            case "Low": return 3;
+            // This ensures items that do not have a data-importance attribute are sorted first in the list, such as the 'Add New Item' link.
+            default: return 0;
+        }
+    }
 </script>

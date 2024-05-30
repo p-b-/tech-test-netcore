@@ -31,11 +31,10 @@ namespace Todo.Controllers
             return View(viewmodel);
         }
 
-        public IActionResult Detail(int todoListId, bool sortByRank)
+        public IActionResult Detail(int todoListId)
         {
             var todoList = dbContext.SingleTodoList(todoListId);
             var viewmodel = TodoListDetailViewmodelFactory.Create(todoList);
-            viewmodel.SortByRankNotImportance = sortByRank;
             return View(viewmodel);
         }
 

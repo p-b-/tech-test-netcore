@@ -27,7 +27,7 @@
                 else
                 {
                     <span class="badge">@list.NumberOfNotDoneItems</span>
-                    <a asp-action="Detail" asp-route-todoListId="@list.TodoListId" asp-route-sortByRank=false>@list.Title</a>
+                    <a asp-action="Detail" asp-route-todoListId="@list.TodoListId">@list.Title</a>
                 }
             </li>
         }

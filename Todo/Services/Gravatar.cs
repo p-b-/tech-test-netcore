@@ -1,9 +1,13 @@
-﻿using System.Security.Cryptography;
+﻿using Newtonsoft.Json.Linq;
+using System;
+using System.Net.Http;
+using System.Security.Cryptography;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Todo.Services
 {
-    public static class Gravatar
+     public static class Gravatar
     {
         public static string GetHash(string emailAddress)
         {
@@ -18,6 +22,23 @@ namespace Todo.Services
                     builder.Append(b.ToString("X2"));
                 }
                 return builder.ToString().ToLowerInvariant();
+            }
+        }
+
+        public static async Task<string> ProfileName(string emailAddress)
+        {
+            using HttpClient client = new();
+            try
+            {
+                var json = await client.GetStringAsync($"https://en.gravatar.com/{GetHash(emailAddress)}.json");
+                JToken token = JObject.Parse(json);
+                string displayName = (string)token.SelectToken("entry")[0].SelectToken("displayName");
+
+                return displayName;
+            }
+            catch(HttpRequestException)
+            {
+                return String.Empty;
             }
         }
     }

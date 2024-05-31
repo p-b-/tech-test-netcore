@@ -56,8 +56,10 @@
                 rowName = "isdone";
             }
 
-            @* data-importance and data-rank are used to store item properties for sorting *@
-            <li class="list-group-item @contextualClass" name=@rowName data-importance="@item.Importance" data-rank="@item.Rank">
+            @* data-importance and data-rank are used to store item properties for sorting 
+                data-email is used to lookup display name from gravatar asynchronously
+            *@
+            <li class="list-group-item @contextualClass" name=@rowName data-importance="@item.Importance" data-rank="@item.Rank" data-email="@item.ResponsibleParty.Email">
 
                 <div class="row">
                     <div class="col-md-8">
@@ -79,8 +81,8 @@
                             @item.ResponsibleParty.UserName
 
                             <img src="https://www.gravatar.com/avatar/@Gravatar.GetHash(item.ResponsibleParty.Email)?s=30" />
-
                         </small>
+                        <p/>
                     </div>
                 </div>
 
@@ -89,10 +91,13 @@
     </ul>
 </div>
 
+<script src="~/lib/jquery/dist/jquery.js"></script>
 <script>
     const hideDoneCheckbox = document.getElementById("hideDoneCheckbox")
     const sortByRank = document.getElementById("sortByRank")
     const sortByImportance = document.getElementById("sortByImportance")
+
+    loadProfileNames();
 
     // Initial sort on page load is importance/ascending
     var sortedBy = "importance"
@@ -130,9 +135,29 @@
         sortItems(sortAscending, sortByImportanceComparitor)
     })
 
+    function loadProfileNames() {
+        let ul = $(".list-group:first");
+
+
+        $.each(ul.children("li"), function (_, element) {
+            let paragraph = element.getElementsByTagName("p")
+            let emailAddr = element.getAttribute("data-email");
+
+            if (paragraph!=null && paragraph.length>0) {
+                setProfileName(paragraph[0], emailAddr);
+            }
+        });
+    }
+
+    function setProfileName(element, emailAddress) {
+        $.getJSON('@Url.Action("GetProfileName")', { emailAddress }, function (profileName) {
+            element.innerText = profileName;
+        });
+    }
+
     function sortItems(ascending, comparitor)  {
-        var ul = $(".list-group:first");
-        var arr = $.makeArray(ul.children("li"));
+        let ul = $(".list-group:first");
+        let arr = $.makeArray(ul.children("li"));
 
         arr.sort(comparitor);
         if (!ascending) {
@@ -147,8 +172,8 @@
     }
 
     function sortByRankComparitor(elementA, elementB) {
-        var rankAStr = elementA.getAttribute("data-rank");
-        var rankBStr = elementB.getAttribute("data-rank");
+        let rankAStr = elementA.getAttribute("data-rank");
+        let rankBStr = elementB.getAttribute("data-rank");
         if (rankBStr == null) {
             // B is the 'add new item' at the top of the list, it should come before A
             return 1; 
@@ -157,8 +182,8 @@
             // A is the 'add new item' at the top of the list, it should come before B
             return -1;
         }
-        var rankA = +rankAStr;
-        var rankB = +rankBStr;
+        let rankA = +rankAStr;
+        let rankB = +rankBStr;
 
         if (rankA < rankB) return -1; // A comes before B
         if (rankA > rankB) return 1; // B comes before A
@@ -167,8 +192,8 @@
     }
 
     function sortByImportanceComparitor(elementA, elementB) {
-        var importanceStringA = elementA.getAttribute("data-importance");
-        var importanceStringB = elementB.getAttribute("data-importance");
+        let importanceStringA = elementA.getAttribute("data-importance");
+        let importanceStringB = elementB.getAttribute("data-importance");
         if (importanceStringB == null) {
             // B is the 'add new item' at the top of the list, it should come before A
             return 1;
@@ -178,8 +203,8 @@
             return -1;
         }
 
-        var importanceA = importanceToInteger(importanceStringA);
-        var importanceB = importanceToInteger(importanceStringB);
+        let importanceA = importanceToInteger(importanceStringA);
+        let importanceB = importanceToInteger(importanceStringB);
 
         if (importanceA < importanceB) return -1;  // A comes before B
         if (importanceA > importanceB) return 1; //  B comes before A

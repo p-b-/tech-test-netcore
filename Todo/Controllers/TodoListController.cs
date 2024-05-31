@@ -38,6 +38,12 @@ namespace Todo.Controllers
             return View(viewmodel);
         }
 
+        public async Task<IActionResult> GetProfileName(string emailAddress)
+        {
+            string profileName = await Gravatar.ProfileName(emailAddress);
+            return new JsonResult(profileName);
+        }
+
         [HttpGet]
         public IActionResult Create()
         {

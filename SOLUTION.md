@@ -14,3 +14,6 @@ Navigating away from the view, to create or edit, returns to the default sort or
 
 If the list is empty, removing the sort links should be considered, or, disabling them. 
 
+Task 8.
+
+The view is loaded with an empty <p> element where the profile name will go (if it exists). This is then populated by calling loadProfileNames(), which iterates through the list looking for these paragraph elements and calling the controller asynchronously to request it from gravatar. If it does not exist, or the call to gravatar fails for any http-related reason (for instance if the service is down), an empty string is returned to the browser.

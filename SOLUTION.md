@@ -17,3 +17,8 @@ If the list is empty, removing the sort links should be considered, or, disablin
 Task 8.
 
 The view is loaded with an empty <p> element where the profile name will go (if it exists). This is then populated by calling loadProfileNames(), which iterates through the list looking for these paragraph elements and calling the controller asynchronously to request it from gravatar. If it does not exist, or the call to gravatar fails for any http-related reason (for instance if the service is down), an empty string is returned to the browser.
+
+Task 9.
+
+I've removed the Add New Item link, but left the Create Item view and supporting code in-place as the New List functionality redirects there after creating a list.
+I've added a button 'create item' that is not triggered by pressing return, as I did not want any accidental creations - there is currently no way of removing a list. The user only needs to add the title, ownership defaults to the list owener, with medium importance and zero rank.

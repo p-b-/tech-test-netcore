@@ -51,6 +51,16 @@ namespace Todo.Controllers
         }
 
         [HttpPost]
+        public async Task<IActionResult> CreateItem(int listId, string title, string responsiblePartyId)
+        {
+            var item = new TodoItem(listId, responsiblePartyId, title, Importance.Medium, 0);
+
+            await dbContext.AddAsync(item);
+            await dbContext.SaveChangesAsync();
+            return new JsonResult(item.TodoItemId);
+        }
+
+        [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(TodoListFields fields)
         {

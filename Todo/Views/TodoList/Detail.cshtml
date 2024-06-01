@@ -1,8 +1,12 @@
-﻿@using Todo.Controllers
+﻿ @using Microsoft.AspNetCore.Identity
+@using Todo.Controllers
+@using Todo.Data
 @using Todo.Data.Entities
 @using Todo.Services
 @using Todo.Models.TodoItems
+@using Todo.Views.TodoItem
 @model Todo.Models.TodoLists.TodoListDetailViewmodel
+@inject ApplicationDbContext dbContext
 
 @{
     ViewData["Title"] = $"List: {Model.Title}";
@@ -10,85 +14,92 @@
 
 <h2>@ViewData["Title"]</h2>
 
-<div class="col-md-6">
-    <div class="form-group">
+<div>
+    <div class="col-md-6">
+        <div class="form-group">
 
-        <div class="checkbox">
-            <label>
-                <input type="checkbox" id="hideDoneCheckbox" />Hide completed
-            </label>
-        </div>
-        <a id="sortByImportance">
-            <strong>Sort by importance</strong>
-        </a>
-        <br/>
-        <a id="sortByRank">
-            <strong>Sort by rank</strong>
-        </a>
-
-    </div>
-    <ul class="list-group">
-        <li class="list-group-item">
-            <a asp-action="Create" asp-controller="TodoItem" asp-route-todoListId="@Model.TodoListId">
-                <strong>Add New Item</strong>
+            <div class="checkbox">
+                <label>
+                    <input type="checkbox" id="hideDoneCheckbox" />Hide completed
+                </label>
+            </div>
+            <a id="sortByImportance">
+                <strong>Sort by importance</strong>
             </a>
-        </li>
-
-        @* If changing the sorting, update the javascript in the <script> block to represent what the default sort is on page load *@
-        @foreach (var item in Model.Items.OrderBy(m => m.Importance))
-        {
-            string contextualClass;
-            switch (item.Importance)
+            <br/>
+            <a id="sortByRank">
+                <strong>Sort by rank</strong>
+            </a>
+        </div>
+        <ul class="list-group">
+            @* If changing the sorting, update the javascript in the <script> block to represent what the default sort is on page load *@
+            @foreach (var item in Model.Items.OrderBy(m => m.Importance))
             {
-                case Importance.High:
-                    contextualClass = "list-group-item-danger";
-                    break;
-                case Importance.Low:
-                    contextualClass = "list-group-item-info";
-                    break;
-                default:
-                    contextualClass = "";
-                    break;
-            }
-            string rowName = "outstanding";
-            @if (item.IsDone)
-            {
-                rowName = "isdone";
-            }
+                string contextualClass;
+                switch (item.Importance)
+                {
+                    case Importance.High:
+                        contextualClass = "list-group-item-danger";
+                        break;
+                    case Importance.Low:
+                        contextualClass = "list-group-item-info";
+                        break;
+                    default:
+                        contextualClass = "";
+                        break;
+                }
+                string rowName = "outstanding";
+                @if (item.IsDone)
+                {
+                    rowName = "isdone";
+                }
 
-            @* data-importance and data-rank are used to store item properties for sorting 
-                data-email is used to lookup display name from gravatar asynchronously
-            *@
-            <li class="list-group-item @contextualClass" name=@rowName data-importance="@item.Importance" data-rank="@item.Rank" data-email="@item.ResponsibleParty.Email">
+                @* data-importance and data-rank are used to store item properties for sorting 
+                    data-email is used to lookup display name from gravatar asynchronously
+                *@
+                <li class="list-group-item @contextualClass" name=@rowName data-importance="@item.Importance" data-rank="@item.Rank" data-email="@item.ResponsibleParty.Email">
 
-                <div class="row">
-                    <div class="col-md-8">
-                        <a asp-action="Edit" asp-controller="TodoItem" asp-route-todoItemId="@item.TodoItemId">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <a asp-action="Edit" asp-controller="TodoItem" asp-route-todoItemId="@item.TodoItemId">
 
-                            @if (item.IsDone)
-                            {
-                                <s>@item.Title</s>
-                            }
-                            else
-                            {
-                                <text>@item.Title</text>
-                            }
-                        </a>
+                                @if (item.IsDone)
+                                {
+                                    <s>@item.Title</s>
+                                }
+                                else
+                                {
+                                    <text>@item.Title</text>
+                                }
+                            </a>
+                        </div>
+
+                        <div class="col-md-4 text-right">
+                            <small>
+                                @item.ResponsibleParty.UserName
+
+                                <img src="https://www.gravatar.com/avatar/@Gravatar.GetHash(item.ResponsibleParty.Email)?s=30" />
+                            </small>
+                            <p/>
+                        </div>
                     </div>
 
-                    <div class="col-md-4 text-right">
-                        <small>
-                            @item.ResponsibleParty.UserName
-
-                            <img src="https://www.gravatar.com/avatar/@Gravatar.GetHash(item.ResponsibleParty.Email)?s=30" />
-                        </small>
-                        <p/>
-                    </div>
-                </div>
-
-            </li>
-        }
-    </ul>
+                </li>
+            }
+        </ul>
+    </div>
+    <div class="col-md-6">
+        <div class="form-group">
+            <label>Create item</label> 
+            <div class="form-group">
+                <label asp-for="Title"></label>
+                <input class="form-control" id="createItemTitle"/>
+                <span asp-validation-for="Title" class="text-danger"></span>
+            </div>
+        </div>
+        <div class="form-group">
+            <button id="createButton" onclick="createItemClicked()">Create</button>
+        </div>
 </div>
 
 <script src="~/lib/jquery/dist/jquery.js"></script>
@@ -153,6 +164,14 @@
         $.getJSON('@Url.Action("GetProfileName")', { emailAddress }, function (profileName) {
             element.innerText = profileName;
         });
+    }
+
+    function resort() {
+        let comparitor = sortByRankComparitor;
+        if (sortedBy == "importance") {
+            comparitor = sortByImportanceComparitor;
+        }
+        sortItems(sortAscending, comparitor);
     }
 
     function sortItems(ascending, comparitor)  {
@@ -221,4 +240,88 @@
             default: return 0;
         }
     }
+
+    function createItemClicked() {
+        let titleElement = document.getElementById("createItemTitle")
+        if (titleElement == null || titleElement.value == null) {
+            return
+        }
+
+        let titleText = titleElement.value.trim();
+        if (titleText.length == 0) {
+            return
+        }
+        let ul = $(".list-group:first");
+
+        let li = createNewListRow(titleText);
+
+        ul.append(li);
+
+        let paragraph = li.getElementsByTagName("p");
+        let anchor = li.getElementsByTagName("a");
+        let emailAddr = li.getAttribute("data-email");
+
+        titleElement.value = "";
+
+        if (paragraph != null && paragraph.length > 0) {
+            setProfileName(paragraph[0], emailAddr);
+        }
+
+        createItemAsync(@Model.TodoListId, titleText, "@Model.OwnerId", anchor[0]);
+
+        resort();
+    }
+
+    function createItemAsync(todoListId, title, responsiblePartyId, anchorElement) {
+        $.post('@Url.Action("CreateItem")', { "listId":todoListId, title, responsiblePartyId}, function (itemId) {
+            anchorElement.setAttribute("href", "/TodoItem/Edit?todoItemId="+itemId);
+        });
+
+        resort();
+    }
+
+    function createNewListRow(titleText) {
+        let liElement = document.createElement("li");
+        let divElement = document.createElement("div");
+        let subDivElement1 = document.createElement("div");
+        let anchorElement = document.createElement("a");
+        let subDivElement2 = document.createElement("div");
+        let smallElement = document.createElement("small");
+        let paragraphElement = document.createElement("p");
+        let imageElement = document.createElement("img");
+        let textElement = document.createElement("text");
+
+        textElement.innerText = titleText;
+
+        // Anchor element will need to have its href attribute set after this item is created in the database
+
+        imageElement.setAttribute("src", "https://www.gravatar.com/avatar/@Gravatar.GetHash(@Model.OwnerEmail)?s=30");
+
+        // During tests, a plus sign was causing issues inside an email address. Javascripts unescape is deprecated.
+        let email = "@Model.OwnerEmail";
+        let unescapedEmail = email.replace("&#x2B;", "+");
+        smallElement.innerText = unescapedEmail;
+
+        subDivElement1.setAttribute("class", "col-md-8");
+        subDivElement2.setAttribute("class", "col-md-4 text-right");
+        divElement.setAttribute("class", "row");
+
+        liElement.setAttribute("class", "list-group-item");
+        liElement.setAttribute("name", "outstanding");
+        liElement.setAttribute("data-importance", "Medium");
+        liElement.setAttribute("data-rank", "0");
+
+        liElement.setAttribute("data-email", unescapedEmail);
+
+        smallElement.append(imageElement);
+        subDivElement2.append(smallElement);
+        subDivElement2.append(paragraphElement);
+        anchorElement.append(textElement);
+        subDivElement1.append(anchorElement);
+        divElement.append(subDivElement1);
+        divElement.append(subDivElement2);
+        liElement.append(divElement);
+
+        return liElement;
+    }   
 </script>

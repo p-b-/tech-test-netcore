@@ -22,3 +22,15 @@ Task 9.
 
 I've removed the Add New Item link, but left the Create Item view and supporting code in-place as the New List functionality redirects there after creating a list.
 I've added a button 'create item' that is not triggered by pressing return, as I did not want any accidental creations - there is currently no way of removing a list. The user only needs to add the title, ownership defaults to the list owener, with medium importance and zero rank.
+
+Task 10.
+
+I've added up/down buttons to each item, that are only enabled when sorted by rank (cannot reorder rank properly when sorted by importance).
+Each item is now give a unique rank starting from 0.
+Any pre-existing data will need to be removed when running this version, as the code has been updated to give each item an incrementing rank starting from 0. This way, pressing the UP or DOWN button on each item simply swaps the rank with the sibling item, and resorts.
+As well as re-ordering on the page, an asychronous call is made to the controller to swap the ranks in the database.
+Any pre-existing data will need to be removed before running this version, as the ability to edit the rank in the edit page has also been removed - the importance of maintaining a unique rank is paramount for this version of reordering to work.
+
+I could have made the LI elements draggable, but the requirements didn't state what was visually required. Also, this only requires swapping the ranks of two items, draggable elements would mean updating the ranks of potentially many records (though it is possible by using a double for the rank, or having the initial ranks spaced out).
+
+Issues: when creating an item, the spacing after the buttons is not correct (Chrome Version 109.0.5414.120, Edge Version 125.0.2535.79)

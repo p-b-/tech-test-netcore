@@ -23,17 +23,17 @@
                     <input type="checkbox" id="hideDoneCheckbox" />Hide completed
                 </label>
             </div>
-            <a id="sortByImportance">
-                <strong>Sort by importance</strong>
+            <a id="sortByRank" style="font-weight:bold">
+                Sort by rank
             </a>
             <br/>
-            <a id="sortByRank">
-                <strong>Sort by rank</strong>
+            <a id="sortByImportance">
+                Sort by importance
             </a>
         </div>
         <ul class="list-group">
             @* If changing the sorting, update the javascript in the <script> block to represent what the default sort is on page load *@
-            @foreach (var item in Model.Items.OrderBy(m => m.Importance))
+            @foreach (var item in Model.Items.OrderBy(m => m.Rank))
             {
                 string contextualClass;
                 switch (item.Importance)
@@ -57,10 +57,17 @@
                 @* data-importance and data-rank are used to store item properties for sorting 
                     data-email is used to lookup display name from gravatar asynchronously
                 *@
-                <li class="list-group-item @contextualClass" name=@rowName data-importance="@item.Importance" data-rank="@item.Rank" data-email="@item.ResponsibleParty.Email">
+                <li class="list-group-item @contextualClass" name=@rowName data-importance="@item.Importance" data-rank="@item.Rank" data-email="@item.ResponsibleParty.Email" data-itemId="@item.TodoItemId">
 
                     <div class="row">
                         <div class="col-md-8">
+                            <button type="button" class="btn btn-default" aria-label="Move Rank Down" onclick="moveRankDown(event)">
+                                <span class="glyphicon glyphicon-chevron-up" aria-hidden="true"></span>
+                            </button>
+                            <button type="button" class="btn btn-default" aria-label="Move Rank Up" onclick="moveRankUp(event)">
+                                <span class="glyphicon glyphicon-chevron-down" aria-hidden="true"></span>
+                            </button>
+
                             <a asp-action="Edit" asp-controller="TodoItem" asp-route-todoItemId="@item.TodoItemId">
 
                                 @if (item.IsDone)
@@ -107,11 +114,13 @@
     const hideDoneCheckbox = document.getElementById("hideDoneCheckbox")
     const sortByRank = document.getElementById("sortByRank")
     const sortByImportance = document.getElementById("sortByImportance")
+    // Initial sorting is by rank.
+    rankingButtonsEnabled(true);
 
     loadProfileNames();
 
     // Initial sort on page load is importance/ascending
-    var sortedBy = "importance"
+    var sortedBy = "rank"
     var sortAscending = true;
 
     const collection = document.getElementsByName("isdone")
@@ -131,8 +140,11 @@
         else {
             sortedBy = "rank"
             sortAscending = true;
+            emphasiseAnchor(sortByRank, true);
+            emphasiseAnchor(sortByImportance, false);
         }
-        sortItems(sortAscending, sortByRankComparitor)
+        sortItems(sortAscending, sortByRankComparitor);
+        rankingButtonsEnabled(true);
     })
 
     sortByImportance.addEventListener('click', (event) => {
@@ -142,13 +154,15 @@
         else {
             sortedBy = "importance"
             sortAscending = true;
+            emphasiseAnchor(sortByRank, false);
+            emphasiseAnchor(sortByImportance, true);
         }
-        sortItems(sortAscending, sortByImportanceComparitor)
+        sortItems(sortAscending, sortByImportanceComparitor);
+        rankingButtonsEnabled(false);
     })
 
     function loadProfileNames() {
         let ul = $(".list-group:first");
-
 
         $.each(ul.children("li"), function (_, element) {
             let paragraph = element.getElementsByTagName("p")
@@ -253,13 +267,16 @@
         }
         let ul = $(".list-group:first");
 
-        let li = createNewListRow(titleText);
+        let liElement = createNewListRow(titleText);
+        if (sortedBy == "importance") {
+            disableRankingButtonsInsideLI(liElement, false);
+        }
 
-        ul.append(li);
+        ul.append(liElement);
 
-        let paragraph = li.getElementsByTagName("p");
-        let anchor = li.getElementsByTagName("a");
-        let emailAddr = li.getAttribute("data-email");
+        let paragraph = liElement.getElementsByTagName("p");
+        let anchor = liElement.getElementsByTagName("a");
+        let emailAddr = liElement.getAttribute("data-email");
 
         titleElement.value = "";
 
@@ -267,14 +284,19 @@
             setProfileName(paragraph[0], emailAddr);
         }
 
-        createItemAsync(@Model.TodoListId, titleText, "@Model.OwnerId", anchor[0]);
+        createItemAsync(@Model.TodoListId, titleText, "@Model.OwnerId", anchor[0], liElement);
 
         resort();
     }
 
-    function createItemAsync(todoListId, title, responsiblePartyId, anchorElement) {
-        $.post('@Url.Action("CreateItem")', { "listId":todoListId, title, responsiblePartyId}, function (itemId) {
-            anchorElement.setAttribute("href", "/TodoItem/Edit?todoItemId="+itemId);
+    function createItemAsync(todoListId, title, responsiblePartyId, anchorElement, liElement) {
+        $.post('@Url.Action("CreateItem")', { "listId":todoListId, title, responsiblePartyId}, function (item) {
+            anchorElement.setAttribute("href", "/TodoItem/Edit?todoItemId=" + item.todoItemId);
+            // Used when moving an item up/down a rank - item ids used to swap the rank in the backend
+            liElement.setAttribute("data-itemId", item.todoItemId);
+            // Used for sorting by rank
+            liElement.setAttribute("data-rank", item.rank);
+            resort();
         });
 
         resort();
@@ -290,17 +312,32 @@
         let paragraphElement = document.createElement("p");
         let imageElement = document.createElement("img");
         let textElement = document.createElement("text");
+        let buttonRankDownElement = document.createElement("button");
+        let buttonRankUpElement = document.createElement("button");
+        let buttonRankDownSpanElement = document.createElement("span");
+        let buttonRankUpSpanElement = document.createElement("span");
 
         textElement.innerText = titleText;
 
         // Anchor element will need to have its href attribute set after this item is created in the database
-
         imageElement.setAttribute("src", "https://www.gravatar.com/avatar/@Gravatar.GetHash(@Model.OwnerEmail)?s=30");
 
         // During tests, a plus sign was causing issues inside an email address. Javascripts unescape is deprecated.
         let email = "@Model.OwnerEmail";
         let unescapedEmail = email.replace("&#x2B;", "+");
         smallElement.innerText = unescapedEmail;
+
+        buttonRankDownSpanElement.setAttribute("class", "glyphicon glyphicon-chevron-up");
+        buttonRankDownSpanElement.setAttribute("aria-hidden", "true");
+        buttonRankUpSpanElement.setAttribute("class", "glyphicon glyphicon-chevron-down");
+        buttonRankUpSpanElement.setAttribute("aria-hidden", "true");
+
+        buttonRankDownElement.setAttribute("type", "button");
+        buttonRankDownElement.setAttribute("class", "btn btn-default");
+        buttonRankDownElement.setAttribute("aria-label", "Move Rank Down");
+        buttonRankUpElement.setAttribute("type", "button");
+        buttonRankUpElement.setAttribute("class", "btn btn-default");
+        buttonRankUpElement.setAttribute("aria-label", "Move Rank Up");
 
         subDivElement1.setAttribute("class", "col-md-8");
         subDivElement2.setAttribute("class", "col-md-4 text-right");
@@ -317,11 +354,104 @@
         subDivElement2.append(smallElement);
         subDivElement2.append(paragraphElement);
         anchorElement.append(textElement);
+
+        buttonRankDownElement.append(buttonRankDownSpanElement);
+        buttonRankUpElement.append(buttonRankUpSpanElement);
+        subDivElement1.append(buttonRankDownElement);
+        subDivElement1.append(buttonRankUpElement);
         subDivElement1.append(anchorElement);
         divElement.append(subDivElement1);
         divElement.append(subDivElement2);
         liElement.append(divElement);
 
+        buttonRankDownElement.addEventListener('click', moveRankDown);
+        buttonRankUpElement.addEventListener('click', moveRankUp);
+
         return liElement;
-    }   
+    }
+
+    function moveRankDown(event) {
+        if (sortedBy != "rank") {
+            return
+        }
+        let currentTarget = event.currentTarget
+        if (currentTarget != null) {
+            let containingListElement = currentTarget.parentElement.parentElement.parentElement;
+            let siblingListElement = containingListElement.previousElementSibling
+            if (siblingListElement != null) {
+                moveRank(containingListElement, siblingListElement);
+            }
+        }
+    }
+
+    function moveRankUp(event) {
+        if (sortedBy != "rank") {
+            return
+        }
+        let currentTarget = event.currentTarget
+        if (currentTarget != null) {
+            let containingListElement = currentTarget.parentElement.parentElement.parentElement;
+            let siblingListElement = containingListElement.nextElementSibling;
+            if (siblingListElement != null) {
+                moveRank(containingListElement, siblingListElement);
+            }
+        }
+    }
+
+    function moveRank(targetListElement, siblingListElement) {
+        let itemId = targetListElement.getAttribute("data-itemid");
+        if (itemId == null) {
+            return;
+        }
+        let itemRank = targetListElement.getAttribute("data-rank");
+        if (siblingListElement != null) {
+            let siblingId = siblingListElement.getAttribute("data-itemId");
+            if (siblingId == null) {
+                return
+            }
+            let swapWithRank = siblingListElement.getAttribute("data-rank");
+
+            targetListElement.setAttribute("data-rank", swapWithRank);
+            siblingListElement.setAttribute("data-rank", itemRank);
+
+            swapItemRanksAsync(itemId, siblingId);
+
+            resort();
+        }
+    }
+
+    function rankingButtonsEnabled(visible) {
+        let ul = $(".list-group:first");
+
+        $.each(ul.children("li"), function (_, liElement) {
+            disableRankingButtonsInsideLI(liElement, visible);
+        });
+    }
+
+    function disableRankingButtonsInsideLI(liElement, visible) {
+        let opacity = 0.2;
+        if (visible) {
+            opacity = 1.0;
+        }
+
+        let buttonElements = liElement.getElementsByTagName("button");
+        $.each(buttonElements, function (_, buttonElement) {
+            buttonElement.disabled = !visible;
+            buttonElement.style.opacity = opacity;
+        });
+    }
+
+    function swapItemRanksAsync(item1Id, item2Id) {
+        $.post('@Url.Action("SwapItemRanks")', { item1Id, item2Id });
+    }
+
+    function emphasiseAnchor(anchorElement, emphasise) {
+        if (emphasise) {
+            anchorElement.setAttribute("style", "font-weight:bold");
+        }
+        else {
+            anchorElement.setAttribute("style", "");
+        }
+    }
+
 </script>

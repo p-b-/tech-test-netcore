@@ -24,6 +24,34 @@ namespace Todo.Services
             return ownedLists.ToList().Union(otherLists.ToList()).ToList();
         }
 
+        public static int NextRankForList(this ApplicationDbContext dbContext, int todoListId)
+        {
+            var count = dbContext.TodoItems
+                .Where(ti => ti.TodoListId == todoListId)
+                .Max(r => r.Rank);
+
+            return count+1;
+        }
+
+        public static bool SwapRanksForItems(this ApplicationDbContext dbContext, int item1Id, int item2Id)
+        {
+            TodoItem item1 = dbContext.SingleTodoItem(item1Id);
+            TodoItem item2 = dbContext.SingleTodoItem(item2Id);
+            if (item1==null || item2==null)
+            {
+                return false;
+            }
+
+            int item1Rank = item1.Rank;
+            item1.Rank = item2.Rank;
+            item2.Rank = item1Rank;
+
+            dbContext.Update(item1);
+            dbContext.Update(item2);
+            dbContext.SaveChanges();
+            return true;
+        }
+
         public static TodoList SingleTodoList(this ApplicationDbContext dbContext, int todoListId)
         {
             return dbContext.TodoLists.Include(tl => tl.Owner)

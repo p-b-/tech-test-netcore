@@ -1,6 +1,8 @@
-﻿using System.Threading;
+﻿using System.Net;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Todo.Data;
@@ -53,11 +55,25 @@ namespace Todo.Controllers
         [HttpPost]
         public async Task<IActionResult> CreateItem(int listId, string title, string responsiblePartyId)
         {
-            var item = new TodoItem(listId, responsiblePartyId, title, Importance.Medium, 0);
+            int nextRank = dbContext.NextRankForList(listId);
+
+            var item = new TodoItem(listId, responsiblePartyId, title, Importance.Medium, nextRank);
 
             await dbContext.AddAsync(item);
             await dbContext.SaveChangesAsync();
-            return new JsonResult(item.TodoItemId);
+            return new JsonResult(item);
+        }
+
+        [HttpPost]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public void SwapItemRanks(int item1Id, int item2Id)
+        {
+            // TODO Actually determine why the rank swap failed and return an acceptable error.
+            if (!dbContext.SwapRanksForItems(item1Id, item2Id))
+            {
+                HttpContext.Response.StatusCode = (int)HttpStatusCode.NotFound;
+            }
         }
 
         [HttpPost]

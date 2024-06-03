@@ -87,7 +87,7 @@
 
                                 <img src="https://www.gravatar.com/avatar/@Gravatar.GetHash(item.ResponsibleParty.Email)?s=30" />
                             </small>
-                            <p/>
+                            <p>&nbsp;</p>
                         </div>
                     </div>
 
@@ -122,12 +122,21 @@
     // Initial sort on page load is importance/ascending
     var sortedBy = "rank"
     var sortAscending = true;
+    var hidingCompletedItems = false;
 
     const collection = document.getElementsByName("isdone")
 
     hideDoneCheckbox.addEventListener('change', (event) => {
-        const checked = event.target.checked
-        const setTo = checked ? "none" : "block";
+        hidingCompletedItems = event.target.checked
+        if (hidingCompletedItems) {
+            rankingButtonsEnabled(false);
+        }
+        else {
+            if (sortedBy=="rank") {
+              rankingButtonsEnabled(true);
+            }
+        }
+        const setTo = hidingCompletedItems ? "none" : "block";
         for (let i = 0; i < collection.length; i++) {
             collection[i].style.display = setTo;
         }
@@ -144,7 +153,9 @@
             emphasiseAnchor(sortByImportance, false);
         }
         sortItems(sortAscending, sortByRankComparitor);
-        rankingButtonsEnabled(true);
+        if (hidingCompletedItems==false) {
+            rankingButtonsEnabled(true);
+        }
     })
 
     sortByImportance.addEventListener('click', (event) => {
@@ -162,21 +173,40 @@
     })
 
     function loadProfileNames() {
+        let emails = new Set();
+
         let ul = $(".list-group:first");
 
         $.each(ul.children("li"), function (_, element) {
-            let paragraph = element.getElementsByTagName("p")
-            let emailAddr = element.getAttribute("data-email");
-
-            if (paragraph!=null && paragraph.length>0) {
-                setProfileName(paragraph[0], emailAddr);
+            let emailAddr = element.getAttribute("data-email").toLowerCase();
+            if (!emails.has(emailAddr)) {
+                emails.add(emailAddr);
+                setProfileName(emailAddr);
             }
         });
     }
 
-    function setProfileName(element, emailAddress) {
-        $.getJSON('@Url.Action("GetProfileName")', { emailAddress }, function (profileName) {
-            element.innerText = profileName;
+    function setProfileName(emailAddressInLowerCase) {
+        $.getJSON('@Url.Action("GetProfileName")', { "emailAddress":emailAddressInLowerCase }, function (profileName) {
+            // Got an emailAddress -> profileName link. Iterate across all LI elements and update
+            //  the profile name for any items that have the same email address
+            let ul = $(".list-group:first");
+
+            $.each(ul.children("li"), function (_, element) {
+                let iteratingEmailAddr = element.getAttribute("data-email").toLowerCase();
+                if (iteratingEmailAddr == emailAddressInLowerCase) {
+                    let paragraphs = element.getElementsByTagName("p");
+                    if (paragraphs != null && paragraphs.length > 0) {
+                        pElement = paragraphs[0];
+                        if (profileName == null || profileName == "") {
+                            pElement.innerText = '\xa0';
+                        }
+                        else {
+                            pElement.innerText = profileName;
+                        }
+                    }
+                }
+            });
         });
     }
 
@@ -281,9 +311,8 @@
         titleElement.value = "";
 
         if (paragraph != null && paragraph.length > 0) {
-            setProfileName(paragraph[0], emailAddr);
+            setProfileName(emailAddr.toLowerCase());
         }
-
         createItemAsync(@Model.TodoListId, titleText, "@Model.OwnerId", anchor[0], liElement);
 
         resort();

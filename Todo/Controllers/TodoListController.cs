@@ -65,18 +65,6 @@ namespace Todo.Controllers
         }
 
         [HttpPost]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public void SwapItemRanks(int item1Id, int item2Id)
-        {
-            // TODO Actually determine why the rank swap failed and return an acceptable error.
-            if (!dbContext.SwapRanksForItems(item1Id, item2Id))
-            {
-                HttpContext.Response.StatusCode = (int)HttpStatusCode.NotFound;
-            }
-        }
-
-        [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(TodoListFields fields)
         {

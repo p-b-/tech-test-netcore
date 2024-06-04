@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -26,28 +27,29 @@ namespace Todo.Services
 
         public static int NextRankForList(this ApplicationDbContext dbContext, int todoListId)
         {
-            var count = dbContext.TodoItems
-                .Where(ti => ti.TodoListId == todoListId)
-                .Max(r => r.Rank);
+            var items = dbContext.TodoItems
+                .Where(ti => ti.TodoListId == todoListId);
+            if (items.Count()==0)
+            {
+                return 0;
+            }
 
-            return count+1;
+            var maxRank = items.Max(r => r.Rank);
+
+            return maxRank + 1;
         }
 
-        public static bool SwapRanksForItems(this ApplicationDbContext dbContext, int item1Id, int item2Id)
+        public static bool UpdateItemRank(this ApplicationDbContext dbContext, int itemId, int updatedRank)
         {
-            TodoItem item1 = dbContext.SingleTodoItem(item1Id);
-            TodoItem item2 = dbContext.SingleTodoItem(item2Id);
-            if (item1==null || item2==null)
+            TodoItem item1 = dbContext.SingleTodoItem(itemId);
+            if (item1 == null)
             {
                 return false;
             }
 
-            int item1Rank = item1.Rank;
-            item1.Rank = item2.Rank;
-            item2.Rank = item1Rank;
+            item1.Rank = updatedRank;
 
             dbContext.Update(item1);
-            dbContext.Update(item2);
             dbContext.SaveChanges();
             return true;
         }

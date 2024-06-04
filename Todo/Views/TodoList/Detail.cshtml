@@ -14,6 +14,11 @@
 
 <h2>@ViewData["Title"]</h2>
 
+@using (Html.BeginForm(null, null, FormMethod.Post, new { id = "__AjaxAntiForgeryForm" }))
+{
+    @Html.AntiForgeryToken()
+}
+
 <div>
     <div class="col-md-6">
         <div class="form-group">
@@ -61,13 +66,6 @@
 
                     <div class="row">
                         <div class="col-md-8">
-                            <button type="button" class="btn btn-default" aria-label="Move Rank Down" onclick="moveRankDown(event)">
-                                <span class="glyphicon glyphicon-chevron-up" aria-hidden="true"></span>
-                            </button>
-                            <button type="button" class="btn btn-default" aria-label="Move Rank Up" onclick="moveRankUp(event)">
-                                <span class="glyphicon glyphicon-chevron-down" aria-hidden="true"></span>
-                            </button>
-
                             <a asp-action="Edit" asp-controller="TodoItem" asp-route-todoItemId="@item.TodoItemId">
 
                                 @if (item.IsDone)
@@ -79,6 +77,12 @@
                                     <text>@item.Title</text>
                                 }
                             </a>
+
+                            <div class="form-group">
+                                <label asp-for="@item.Rank"></label>
+                                <input asp-for="@item.Rank" class="form-control" onchange="rankInputChanged(event)"/>
+                                <span asp-validation-for="@item.Rank" class="text-danger"></span>
+                            </div>
                         </div>
 
                         <div class="col-md-4 text-right">
@@ -114,28 +118,17 @@
     const hideDoneCheckbox = document.getElementById("hideDoneCheckbox")
     const sortByRank = document.getElementById("sortByRank")
     const sortByImportance = document.getElementById("sortByImportance")
-    // Initial sorting is by rank.
-    rankingButtonsEnabled(true);
 
     loadProfileNames();
 
     // Initial sort on page load is importance/ascending
     var sortedBy = "rank"
     var sortAscending = true;
-    var hidingCompletedItems = false;
 
     const collection = document.getElementsByName("isdone")
 
     hideDoneCheckbox.addEventListener('change', (event) => {
-        hidingCompletedItems = event.target.checked
-        if (hidingCompletedItems) {
-            rankingButtonsEnabled(false);
-        }
-        else {
-            if (sortedBy=="rank") {
-              rankingButtonsEnabled(true);
-            }
-        }
+        let hidingCompletedItems = event.target.checked
         const setTo = hidingCompletedItems ? "none" : "block";
         for (let i = 0; i < collection.length; i++) {
             collection[i].style.display = setTo;
@@ -153,9 +146,6 @@
             emphasiseAnchor(sortByImportance, false);
         }
         sortItems(sortAscending, sortByRankComparitor);
-        if (hidingCompletedItems==false) {
-            rankingButtonsEnabled(true);
-        }
     })
 
     sortByImportance.addEventListener('click', (event) => {
@@ -169,7 +159,6 @@
             emphasiseAnchor(sortByImportance, true);
         }
         sortItems(sortAscending, sortByImportanceComparitor);
-        rankingButtonsEnabled(false);
     })
 
     function loadProfileNames() {
@@ -297,11 +286,7 @@
         }
         let ul = $(".list-group:first");
 
-        let liElement = createNewListRow(titleText);
-        if (sortedBy == "importance") {
-            disableRankingButtonsInsideLI(liElement, false);
-        }
-
+        let [liElement, inputElement] = createNewListRow(titleText);
         ul.append(liElement);
 
         let paragraph = liElement.getElementsByTagName("p");
@@ -313,18 +298,21 @@
         if (paragraph != null && paragraph.length > 0) {
             setProfileName(emailAddr.toLowerCase());
         }
-        createItemAsync(@Model.TodoListId, titleText, "@Model.OwnerId", anchor[0], liElement);
+        createItemAsync(@Model.TodoListId, titleText, "@Model.OwnerId", anchor[0], liElement, inputElement);
 
         resort();
     }
 
-    function createItemAsync(todoListId, title, responsiblePartyId, anchorElement, liElement) {
+    function createItemAsync(todoListId, title, responsiblePartyId, anchorElement, liElement, inputElement) {
         $.post('@Url.Action("CreateItem")', { "listId":todoListId, title, responsiblePartyId}, function (item) {
             anchorElement.setAttribute("href", "/TodoItem/Edit?todoItemId=" + item.todoItemId);
             // Used when moving an item up/down a rank - item ids used to swap the rank in the backend
             liElement.setAttribute("data-itemId", item.todoItemId);
             // Used for sorting by rank
             liElement.setAttribute("data-rank", item.rank);
+            if (inputElement!=null) {
+                inputElement.value = item.rank;
+            }
             resort();
         });
 
@@ -336,15 +324,16 @@
         let divElement = document.createElement("div");
         let subDivElement1 = document.createElement("div");
         let anchorElement = document.createElement("a");
+        let rankFormGroupElement = document.createElement("div");
+        let rankLabelElement = document.createElement("label");
+        let rankInput1Element = document.createElement("input");
+        let rankInput2Element = document.createElement("input");
+        let rankSpanElement = document.createElement("span");
         let subDivElement2 = document.createElement("div");
         let smallElement = document.createElement("small");
         let paragraphElement = document.createElement("p");
         let imageElement = document.createElement("img");
         let textElement = document.createElement("text");
-        let buttonRankDownElement = document.createElement("button");
-        let buttonRankUpElement = document.createElement("button");
-        let buttonRankDownSpanElement = document.createElement("span");
-        let buttonRankUpSpanElement = document.createElement("span");
 
         textElement.innerText = titleText;
 
@@ -356,20 +345,25 @@
         let unescapedEmail = email.replace("&#x2B;", "+");
         smallElement.innerText = unescapedEmail;
 
-        buttonRankDownSpanElement.setAttribute("class", "glyphicon glyphicon-chevron-up");
-        buttonRankDownSpanElement.setAttribute("aria-hidden", "true");
-        buttonRankUpSpanElement.setAttribute("class", "glyphicon glyphicon-chevron-down");
-        buttonRankUpSpanElement.setAttribute("aria-hidden", "true");
-
-        buttonRankDownElement.setAttribute("type", "button");
-        buttonRankDownElement.setAttribute("class", "btn btn-default");
-        buttonRankDownElement.setAttribute("aria-label", "Move Rank Down");
-        buttonRankUpElement.setAttribute("type", "button");
-        buttonRankUpElement.setAttribute("class", "btn btn-default");
-        buttonRankUpElement.setAttribute("aria-label", "Move Rank Up");
-
         subDivElement1.setAttribute("class", "col-md-8");
         subDivElement2.setAttribute("class", "col-md-4 text-right");
+
+        rankLabelElement.setAttribute("for", "item_rank");
+        rankLabelElement.innerText = "Rank";
+        rankInput1Element.setAttribute("class", "form-control");
+        rankInput1Element.setAttribute("onchange", "rankInputChanged(event)");
+        rankInput1Element.setAttribute("type", "number");
+        rankInput1Element.setAttribute("id", "item_Rank");
+        rankInput1Element.setAttribute("name", "item_Rank");
+        rankInput2Element.setAttribute("name", "__Invariant");
+        rankInput2Element.setAttribute("type", "hidden");
+        rankInput2Element.setAttribute("value", "item.Rank");
+        rankSpanElement.setAttribute("class", "text-danger field-attribution-valid");
+        rankSpanElement.setAttribute("data-valmsg-for", "item.Rank");
+        rankSpanElement.setAttribute("data-valmsg-replace", "true");
+
+        rankFormGroupElement.setAttribute("class", "form-group");
+
         divElement.setAttribute("class", "row");
 
         liElement.setAttribute("class", "list-group-item");
@@ -383,95 +377,48 @@
         subDivElement2.append(smallElement);
         subDivElement2.append(paragraphElement);
         anchorElement.append(textElement);
+        rankFormGroupElement.append(rankLabelElement);
+        rankFormGroupElement.append(rankInput1Element);
+        rankFormGroupElement.append(rankInput2Element);
+        rankFormGroupElement.append(rankSpanElement);
 
-        buttonRankDownElement.append(buttonRankDownSpanElement);
-        buttonRankUpElement.append(buttonRankUpSpanElement);
-        subDivElement1.append(buttonRankDownElement);
-        subDivElement1.append(buttonRankUpElement);
         subDivElement1.append(anchorElement);
+        subDivElement1.append(rankFormGroupElement);
+
         divElement.append(subDivElement1);
         divElement.append(subDivElement2);
         liElement.append(divElement);
 
-        buttonRankDownElement.addEventListener('click', moveRankDown);
-        buttonRankUpElement.addEventListener('click', moveRankUp);
-
-        return liElement;
+        return [liElement, rankInput1Element];
     }
 
-    function moveRankDown(event) {
-        if (sortedBy != "rank") {
-            return
-        }
-        let currentTarget = event.currentTarget
-        if (currentTarget != null) {
-            let containingListElement = currentTarget.parentElement.parentElement.parentElement;
-            let siblingListElement = containingListElement.previousElementSibling
-            if (siblingListElement != null) {
-                moveRank(containingListElement, siblingListElement);
-            }
-        }
-    }
-
-    function moveRankUp(event) {
-        if (sortedBy != "rank") {
-            return
-        }
-        let currentTarget = event.currentTarget
-        if (currentTarget != null) {
-            let containingListElement = currentTarget.parentElement.parentElement.parentElement;
-            let siblingListElement = containingListElement.nextElementSibling;
-            if (siblingListElement != null) {
-                moveRank(containingListElement, siblingListElement);
-            }
-        }
-    }
-
-    function moveRank(targetListElement, siblingListElement) {
-        let itemId = targetListElement.getAttribute("data-itemid");
-        if (itemId == null) {
+    function rankInputChanged(event) {
+        let currentTarget = event.currentTarget;
+        let updatedRank = parseInt(currentTarget.value,10);
+        let containingListElement = currentTarget.parentElement.parentElement.parentElement.parentElement;
+        if (containingListElement == null || containingListElement.tagName != 'LI') {
             return;
         }
-        let itemRank = targetListElement.getAttribute("data-rank");
-        if (siblingListElement != null) {
-            let siblingId = siblingListElement.getAttribute("data-itemId");
-            if (siblingId == null) {
-                return
+        let itemId = containingListElement.getAttribute("data-itemId");
+        if (itemId!=null) {
+            updateItemRanksAsync(itemId, updatedRank);
+        }
+        containingListElement.setAttribute("data-rank", updatedRank);
+        resort();
+    }
+
+    function updateItemRanksAsync(itemId, updatedRank) {
+        var form = $('#__AjaxAntiForgeryForm');
+        var token = $('input[name="__RequestVerificationToken"]', form).val();
+        $.post({
+            url: '@Url.Action("UpdateItemRank", "TodoItem")',
+            type: 'POST',
+            data: {
+                __RequestVerificationToken: token,
+                itemId: itemId,
+                updatedRank: updatedRank
             }
-            let swapWithRank = siblingListElement.getAttribute("data-rank");
-
-            targetListElement.setAttribute("data-rank", swapWithRank);
-            siblingListElement.setAttribute("data-rank", itemRank);
-
-            swapItemRanksAsync(itemId, siblingId);
-
-            resort();
-        }
-    }
-
-    function rankingButtonsEnabled(visible) {
-        let ul = $(".list-group:first");
-
-        $.each(ul.children("li"), function (_, liElement) {
-            disableRankingButtonsInsideLI(liElement, visible);
         });
-    }
-
-    function disableRankingButtonsInsideLI(liElement, visible) {
-        let opacity = 0.2;
-        if (visible) {
-            opacity = 1.0;
-        }
-
-        let buttonElements = liElement.getElementsByTagName("button");
-        $.each(buttonElements, function (_, buttonElement) {
-            buttonElement.disabled = !visible;
-            buttonElement.style.opacity = opacity;
-        });
-    }
-
-    function swapItemRanksAsync(item1Id, item2Id) {
-        $.post('@Url.Action("SwapItemRanks")', { item1Id, item2Id });
     }
 
     function emphasiseAnchor(anchorElement, emphasise) {

@@ -1,5 +1,7 @@
-﻿using System.Threading.Tasks;
+﻿using System.Net;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Todo.Data;
 using Todo.Data.Entities;
@@ -63,6 +65,19 @@ namespace Todo.Controllers
             await dbContext.SaveChangesAsync();
 
             return RedirectToListDetail(todoItem.TodoListId);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public void UpdateItemRank(int itemId,  int updatedRank)
+        {
+            // TODO Actually determine why the rank swap failed and return an acceptable error.
+            if (!dbContext.UpdateItemRank(itemId, updatedRank))
+            {
+                HttpContext.Response.StatusCode = (int)HttpStatusCode.NotFound;
+            }
         }
 
         private RedirectToActionResult RedirectToListDetail(int fieldsTodoListId)

@@ -49,3 +49,8 @@ The same email address would have its profile name requested multiple times. Thi
 Changing items rank (via the buttons) when completed items are hidden, is problematic (have to click past invisible items, so no visual feedback when moving an item past a hidden, completed item). Altering rank has now been disabled when items are hidden.
 There are some potential fixes for this, but not adding any more complexity as product may prefer a draggable interface and not the current implementation.
 
+## Further work 04/06/2024
+
+There was a bug when creating a item inside an empty list, trying to find the max rank from an empty sequence. This has been fixed by splitting the operation into two statements.
+
+Removed the rank changing buttons - should be able to change the rank no matter what the sort order.
